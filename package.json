@@ -1,7 +1,7 @@
 {
-  "name": "kerr-blackhole-webgl",
+  "name": "kerr-studio",
   "version": "1.0.0",
-  "description": "Kerr black hole geodesic raymarcher in WebGL2 with accretion disk frequency shift",
+  "description": "Kerr Studio — interactive Kerr black hole with WebGL2 null-geodesic integration, adaptive lensing, and accretion-disk volume rendering",
   "type": "module",
   "scripts": {
     "dev": "vite",

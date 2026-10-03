@@ -22,6 +22,9 @@ void traceRay(vec2 uv, out vec4 hit0, out vec4 hit1, out vec4 hit2, out vec4 sky
 
 #include "trace.glsl"
 
+// Reconstruct only within a coherent image of the disk. A change in image order,
+// visibility, ray direction or strong curvature requests the original Kerr solver
+// at this exact output pixel. No nearest-neighbor boundary is ever presented.
 bool reconstruct(sampler2D map, vec2 uv, out vec4 result) {
     ivec2 size = textureSize(map, 0);
     vec2 p = uv * vec2(size) - .5f;

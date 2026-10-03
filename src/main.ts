@@ -52,16 +52,18 @@ let currentOptions = {
   orbit: 0.0,
   vignette: 0.0,
   chromatic: 0.0,
-  steps: 28,
+  steps: 18,
   glow: 1.0,
   exposure: -0.5,
-  quality: "high" as const,
+  quality: "balanced" as const,
 };
 
 let engine: BlackHoleEngine | null = null;
 let isDragging = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
+/** Speed restored after orbit drag (animation pauses while dragging). */
+let speedBeforeDrag = 0;
 const pDistance = document.getElementById("param-distance") as HTMLInputElement;
 const distVal = document.getElementById("dist-val") as HTMLElement;
 const pElevation = document.getElementById("param-elevation") as HTMLInputElement;
@@ -562,6 +564,13 @@ window.addEventListener("mousedown", (e) => {
   isDragging = true;
   lastMouseX = e.clientX;
   lastMouseY = e.clientY;
+  // Pause disk animation for the whole drag — keep currentOptions in sync so
+  // updateEngine() on mousemove does not immediately restore speed.
+  speedBeforeDrag = currentOptions.speed;
+  if (speedBeforeDrag > 0) {
+    currentOptions.speed = 0;
+    engine?.setOptions({ speed: 0 });
+  }
 });
 
 window.addEventListener("mousemove", (e) => {
@@ -577,7 +586,12 @@ window.addEventListener("mousemove", (e) => {
 });
 
 window.addEventListener("mouseup", () => {
+  if (!isDragging) return;
   isDragging = false;
+  if (speedBeforeDrag > 0) {
+    currentOptions.speed = speedBeforeDrag;
+    engine?.setOptions({ speed: speedBeforeDrag });
+  }
 });
 window.addEventListener(
   "wheel",
@@ -775,13 +789,10 @@ const toggleBtn = document.getElementById("toggle-panel-btn");
 const panel = document.getElementById("controls-panel");
 toggleBtn?.addEventListener("click", () => {
   panel?.classList.toggle("minimized");
-  toggleBtn.textContent = panel?.classList.contains("minimized") ? "+" : "−";
+  const minimized = panel?.classList.contains("minimized");
+  toggleBtn.textContent = minimized ? "+" : "−";
+  toggleBtn.title = minimized ? "Expand Panel" : "Minimize Panel";
 });
-
-if (window.matchMedia("(max-width: 720px)").matches && panel && toggleBtn) {
-  panel.classList.add("minimized");
-  toggleBtn.textContent = "+";
-}
 
 function currentLookText(): string {
   return JSON.stringify(kerrLookFrom(currentPose, currentOptions), null, 2);
@@ -846,7 +857,7 @@ loadInput?.addEventListener("change", () => {
 const snapshotBtn = document.getElementById("snapshot-btn");
 snapshotBtn?.addEventListener("click", () => {
   if (engine) {
-    engine.captureSnapshot(`kerr-blackhole-${Date.now()}.png`);
+    engine.captureSnapshot(`kerr-studio-${Date.now()}.png`);
     toast.textContent = "Snapshot captured!";
     toast.classList.add("visible");
     setTimeout(() => toast.classList.remove("visible"), 2500);
@@ -880,7 +891,7 @@ window.addEventListener("keydown", (e) => {
     currentOptions.speed = currentOptions.speed > 0 ? 0.0 : 0.65;
     updateEngine();
   } else if (e.key === "s" || e.key === "S") {
-    engine?.captureSnapshot(`kerr-blackhole-${Date.now()}.png`);
+    engine?.captureSnapshot(`kerr-studio-${Date.now()}.png`);
   } else if (e.key === "r" || e.key === "R") {
     restoreLaunch();
   }
@@ -888,8 +899,17 @@ window.addEventListener("keydown", (e) => {
 let frameCount = 0;
 let lastFpsTime = performance.now();
 function updateFps() {
-  frameCount++;
   const now = performance.now();
+  if (engine) {
+    // Prefer real completed render frames from the engine.
+    const engineFps = engine.getFps();
+    if (engineFps > 0) {
+      fpsCounter.textContent = engineFps.toString();
+      requestAnimationFrame(updateFps);
+      return;
+    }
+  }
+  frameCount++;
   if (now - lastFpsTime >= 1000) {
     fpsCounter.textContent = Math.round((frameCount * 1000) / (now - lastFpsTime)).toString();
     frameCount = 0;

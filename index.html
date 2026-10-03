@@ -5,24 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="A spinning Kerr black hole in the browser. Drag to orbit. The stars show where the light bends."
+      content="Kerr Studio — orbit a spinning Kerr black hole in the browser. Drag to explore. Stars follow the bent light."
     />
     <meta name="theme-color" content="#000000" />
-    <meta property="og:title" content="Kerr black hole" />
+    <meta property="og:title" content="Kerr Studio" />
     <meta
       property="og:description"
-      content="A spinning Kerr black hole in the browser. Drag to orbit. The stars show where the light bends."
+      content="Kerr Studio — orbit a spinning Kerr black hole in the browser. Drag to explore. Stars follow the bent light."
     />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/og.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Kerr black hole" />
+    <meta name="twitter:title" content="Kerr Studio" />
     <meta
       name="twitter:description"
-      content="A spinning Kerr black hole in the browser. Drag to orbit. The stars show where the light bends."
+      content="Kerr Studio — orbit a spinning Kerr black hole in the browser. Drag to explore. Stars follow the bent light."
     />
     <meta name="twitter:image" content="/og.png" />
-    <title>Kerr black hole</title>
+    <title>Kerr Studio</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/og.png" />
     <link rel="stylesheet" href="./src/ui/style.css" />
@@ -39,7 +39,7 @@
       <canvas id="blackhole-canvas"></canvas>
       <header class="hud-header">
         <div class="hud-badge">Kerr metric</div>
-        <h1>Kerr black hole</h1>
+        <h1>Kerr Studio</h1>
         <p class="subtitle">Drag to orbit. The stars follow the bent light.</p>
       </header>
       <div class="hud-stats">
@@ -47,7 +47,7 @@
           <span class="stat-label">FPS</span>
           <span id="fps-counter" class="stat-value">60</span>
         </div>
-        <div class="stat-card">
+        <div class="stat-card stat-card--detail" title="Integrator step budget">
           <span class="stat-label">SOLVER</span>
           <span class="stat-value">1,100 RK4</span>
         </div>
@@ -56,13 +56,13 @@
           <span id="stat-spacetime" class="stat-value">Kerr (a = 0.60)</span>
         </div>
       </div>
-      <aside class="hud-panel" id="controls-panel">
+      <aside class="hud-panel minimized" id="controls-panel">
         <div class="panel-header">
           <div class="header-title">
             <span>Studio</span>
           </div>
           <div class="header-actions">
-            <button id="toggle-panel-btn" title="Minimize Panel">−</button>
+            <button id="toggle-panel-btn" title="Expand Panel">+</button>
           </div>
         </div>
         <nav class="panel-tabs">
@@ -474,8 +474,8 @@
               <label>Quality</label>
               <select id="param-quality" class="hud-select">
                 <option value="auto">Auto</option>
-                <option value="high" selected>High</option>
-                <option value="balanced">Balanced (960p Target)</option>
+                <option value="high">High</option>
+                <option value="balanced" selected>Balanced (960p Target)</option>
                 <option value="performance">Performance (640p Target)</option>
               </select>
             </div>

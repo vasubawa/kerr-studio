@@ -37,7 +37,7 @@
     "photonRingBoost": 0,
     "horizonGlow": 0,
     "speed": 0.65,
-    "steps": 28,
+    "steps": 18,
     "lensing": 0.15
   },
   "optics": {
@@ -46,6 +46,6 @@
     "haze": 0.4,
     "vignette": 0,
     "chromatic": 0,
-    "quality": "high"
+    "quality": "balanced"
   }
 }

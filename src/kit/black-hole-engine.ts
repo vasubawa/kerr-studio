@@ -157,7 +157,17 @@ export class BlackHoleEngine {
   private elevation = (6 * Math.PI) / 180;
   private distance = 75;
   private cinematicPose: CameraPose | null = null;
+  private pendingPose: CameraPose | null = null;
   private lastPoseChange = -1e3;
+  private lastPoseInput = -1e3;
+  private lastGeomBuild = -1e3;
+  private wasMoving = false;
+  /** Rebuild lens maps at ~30Hz while streaming; flush ASAP on settle. */
+  private static readonly GEOM_INTERVAL_MS = 1000 / 30;
+  private static readonly GEOM_SETTLE_MS = 48;
+  private fpsFrames = 0;
+  private fpsStamp = 0;
+  private fpsValue = 0;
 
   private options: Required<BlackHoleOptions> = {
     paused: false,
@@ -193,8 +203,8 @@ export class BlackHoleEngine {
     orbit: 0.0,
     vignette: 0.0,
     chromatic: 0.0,
-    steps: 28,
-    quality: "high",
+    steps: 18,
+    quality: "balanced",
   };
 
   private disposed = false;
@@ -289,7 +299,7 @@ export class BlackHoleEngine {
   }
 
   setPose(pose: CameraPose) {
-    const cur = this.cinematicPose;
+    const cur = this.pendingPose ?? this.cinematicPose;
     const changed =
       !cur ||
       Math.abs(pose.distance - cur.distance) > 5e-4 ||
@@ -301,15 +311,38 @@ export class BlackHoleEngine {
       Math.abs(pose.film - cur.film) > 1e-5;
 
     if (changed) {
-      this.cinematicPose = { ...pose };
-      this.lastPoseChange = performance.now();
-      this.geometryDirty = true;
+      this.pendingPose = { ...pose };
+      this.lastPoseInput = performance.now();
     }
 
     if (Math.abs(this.options.exposure - pose.exposure) > 5e-4) {
       this.options.exposure = pose.exposure;
       this.frameDirty = true;
     }
+  }
+
+  /** Apply staged camera pose. Display pose tracks input every frame; lens rebuilds throttle. */
+  private flushPose(time: number): void {
+    if (!this.pendingPose) return;
+
+    // Always advance the camera the volume sees — orbit stays smooth at display rate.
+    this.cinematicPose = this.pendingPose;
+    this.frameDirty = true;
+
+    const waiting = this.lastGeomBuild < 0;
+    const settled = time - this.lastPoseInput >= BlackHoleEngine.GEOM_SETTLE_MS;
+    const due = time - this.lastGeomBuild >= BlackHoleEngine.GEOM_INTERVAL_MS;
+    if (!waiting && !settled && !due) return;
+
+    this.pendingPose = null;
+    this.lastGeomBuild = time;
+    this.lastPoseChange = time;
+    this.geometryDirty = true;
+  }
+
+  /** Actual completed engine frames / sec (not raw rAF ticks). */
+  getFps(): number {
+    return this.fpsValue;
   }
 
   setOptions(options: Partial<BlackHoleOptions>) {
@@ -525,6 +558,7 @@ export class BlackHoleEngine {
       if (t !== this.field) this.destroyTarget(t);
     });
 
+    // Coarse motion lens (~384 cap) — adaptive re-traces fails for clean edges.
     const coarseW = Math.min(
       traceW,
       Math.floor(Math.min(384, Math.sqrt((92160 * traceW) / traceH))),
@@ -606,9 +640,16 @@ export class BlackHoleEngine {
     }
 
     if (this.resizePending) this.resize();
+    this.flushPose(time);
 
     const gl = this.gl;
-    const isMoving = this.cinematicPose !== null && time - this.lastPoseChange < 180;
+    const isMoving =
+      this.cinematicPose !== null && time - this.lastPoseInput < 180;
+    if (this.wasMoving && !isMoving) {
+      // Motion stopped — progressive strips polish the adaptive map.
+      this.refinedRows = 0;
+    }
+    this.wasMoving = isMoving;
     if (this.geometryDirty) {
       this.lens = this.movingLens;
       this.refinedRows = 0;
@@ -651,6 +692,8 @@ export class BlackHoleEngine {
 
       this.lens = this.detailedLens;
       this.geometryDirty = false;
+      // Adaptive already filled the detail buffer; only polish with progressive once motion stops.
+      if (isMoving) this.refinedRows = this.height;
     }
 
     // 2. Progressive Scissor Refinement
@@ -721,21 +764,20 @@ export class BlackHoleEngine {
       pVolume,
       "uSteps",
       this.options.steps ??
-      (this.options.quality === "performance"
-        ? 16
-        : this.options.quality === "balanced"
-          ? 24
-          : 28),
+        (this.options.quality === "performance"
+          ? 16
+          : this.options.quality === "balanced"
+            ? 24
+            : 28),
     );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-    // 4. Bloom Pyramid Passes
+    // 4. Bloom pyramid — full stack always so brightness/glow don't pop on settle.
     const pBlur = this.programs.blur;
     let inputTex = this.scene!.textures[0];
     for (let i = 0; i < this.blooms.length; i++) {
       const [hTarget, vTarget] = this.blooms[i];
 
-      // Horizontal blur
       this.use(pBlur, hTarget);
       this.setVec2(pBlur, "uSize", [hTarget.width, hTarget.height]);
       this.setVec2(pBlur, "uDirection", [2, 0]);
@@ -743,7 +785,6 @@ export class BlackHoleEngine {
       this.setTexture(pBlur, "uImage", inputTex, 0);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-      // Vertical blur
       this.use(pBlur, vTarget);
       this.setVec2(pBlur, "uSize", [vTarget.width, vTarget.height]);
       this.setVec2(pBlur, "uDirection", [0, 2]);
@@ -785,6 +826,13 @@ export class BlackHoleEngine {
     );
 
     this.frameDirty = false;
+    this.fpsFrames++;
+    if (this.fpsStamp === 0) this.fpsStamp = time;
+    if (time - this.fpsStamp >= 1000) {
+      this.fpsValue = Math.round((this.fpsFrames * 1000) / (time - this.fpsStamp));
+      this.fpsFrames = 0;
+      this.fpsStamp = time;
+    }
     if (this.onFirstFrame) {
       const cb = this.onFirstFrame;
       this.onFirstFrame = undefined;
@@ -792,7 +840,7 @@ export class BlackHoleEngine {
     }
   };
 
-  captureSnapshot(filename = "kerr-blackhole.png") {
+  captureSnapshot(filename = "kerr-studio.png") {
     const link = document.createElement("a");
     link.download = filename;
     link.href = this.canvas.toDataURL("image/png");

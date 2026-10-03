@@ -1,6 +1,6 @@
-# Kerr black hole
+# Kerr Studio
 
-A spinning Kerr black hole in the browser. Null geodesics run in WebGL2 fragment shaders (RK4). The disk shows frequency shift, and the stars follow the bent escape rays.
+Orbit a spinning Kerr black hole in the browser. Null geodesics run in WebGL2 fragment shaders (RK4). The disk shows frequency shift, and the stars follow the bent escape rays.
 
 This started as the hero sky in a portfolio site, then grew into its own studio and copyable kit.
 
@@ -27,7 +27,7 @@ For Vercel, point at the repo root (`vercel.json` sets the build). Relative asse
 | --- | --- |
 | Camera | Distance, elevation, azimuth, roll, film, frame shift |
 | Disk | Frequency shift (`off` / `color` / `color+bright`), temperature, radiance, thickness, radii, density, swirl, contrast |
-| Physics | Spin $a$, charge, animation speed, volume steps, starfield warp |
+| Physics | Spin **a**, charge, animation speed, volume steps, starfield warp |
 | Optics | Exposure, glow, stars, haze, vignette, chromatic aberration, quality |
 | Presets | Default, Closer, Quiet disk |
 
@@ -50,18 +50,32 @@ Copy [`src/kit/`](./src/kit/README.md) into another project. That folder is the 
 
 Studio download JSON writes the same shape as `look.json`.
 
+## How it thinks
+
+1. **Coarse geodesic pass** — for each coarse pixel, integrate a null geodesic in Kerr–Newman with RK4 (`trace.glsl`). Store disk hits and escaped sky rays.
+2. **Adaptive upsample** — reconstruct coherent neighborhoods onto the full lens map; if curvature / image-order / ray direction disagree, **re-trace that pixel** (never nearest-neighbor edges).
+3. **Volume** — march plasma along the hit maps (frequency shift, density, swirl), then sample the bent starfield from escape rays.
+4. **While moving** — display pose updates every frame; lens rebuilds throttle (~30 Hz) so orbit feels smooth without rebuilding geodesics every rAF.
+5. **On settle** — progressive scissor strips polish the lens map to full geodesic quality.
+
 ## Physics notes
 
-Kerr metric in Boyer-Lindquist coordinates, $M = 1$:
+Kerr–Newman in Boyer–Lindquist coordinates with **M = 1** (charge **Q** optional; default look uses **Q = 0**, i.e. Kerr):
 
-$$
-\rho^2 = r^2 + a^2\cos^2\theta, \quad \Delta = r^2 - 2Mr + a^2
-$$
+```
+Σ = r² + a² cos²θ
+Δ = r² − 2r + a² + Q²
+```
 
-- Event horizon: $r_+ = M + \sqrt{M^2 - a^2}$
-- Frequency factor on the disk: $D = \sqrt{1 - v^2}/(1 + \mathbf{v}\cdot\mathbf{n})$
+- Outer horizon: **r₊ = 1 + √(1 − a² − Q²)** (requires **a² + Q² ≤ 1**)
+- Conserved energy **E** and angular momentum **L_z** along each null geodesic; Carter constant **Q_C** appears in the θ-motion (named `Q` in the shader, not the charge)
+- Disk frequency factor (special-relativistic Doppler against the local emitter):
 
-See [`docs/engine-customization.md`](./docs/engine-customization.md) for which controls are physical and which are grades.
+```
+D = √(1 − v²) / (1 + v · n)
+```
+
+Spin **a**, charge **Q**, and disk radii are physical. Glow, haze, bloom, and “starfield warp” are presentation grades — they do not change the geodesic solve.
 
 ## License
 
