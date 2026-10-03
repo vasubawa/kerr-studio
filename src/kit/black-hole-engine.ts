@@ -158,7 +158,6 @@ export class BlackHoleEngine {
   private distance = 75;
   private cinematicPose: CameraPose | null = null;
   private pendingPose: CameraPose | null = null;
-  private lastPoseChange = -1e3;
   private lastPoseInput = -1e3;
   private lastGeomBuild = -1e3;
   private wasMoving = false;
@@ -336,7 +335,6 @@ export class BlackHoleEngine {
 
     this.pendingPose = null;
     this.lastGeomBuild = time;
-    this.lastPoseChange = time;
     this.geometryDirty = true;
   }
 
