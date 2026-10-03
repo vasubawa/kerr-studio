@@ -19,7 +19,7 @@
     "tempFall": 0.72,
     "tempPower": 0,
     "saturation": 1,
-    "orbit": 0,
+    "orbit": 1,
     "temperature": 7200,
     "radiance": 8,
     "thickness": 0.035,

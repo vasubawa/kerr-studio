@@ -49,7 +49,7 @@ let currentOptions = {
   tempFall: 0.72,
   tempPower: 0.0,
   saturation: 1.0,
-  orbit: 0.0,
+  orbit: 1.0,
   vignette: 0.0,
   chromatic: 0.0,
   steps: 18,

@@ -208,7 +208,7 @@ export function parseKerrLook(value: unknown): KerrLook | null {
       orbit:
         typeof diskSource.orbit === "number" && Number.isFinite(diskSource.orbit)
           ? diskSource.orbit
-          : 0,
+          : 1,
     },
     spacetime: {
       spin: spacetime.spin,

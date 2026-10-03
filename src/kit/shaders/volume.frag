@@ -38,6 +38,7 @@ uniform float uReddening;
 uniform float uPhotonRingBoost;
 uniform float uHorizonGlow;
 uniform float uSpin;
+uniform float uCharge;
 uniform float uStarShift;
 uniform float uHeatHaze;
 uniform float uInnerFade;
@@ -133,11 +134,23 @@ void plasma(vec3 pos, vec3 direction, float InnerRadius, float OuterRadius, floa
     vec3 ray = normalize(direction);
     float front = .14 * pow(r / 7.5, -.75) * exp(-max(r - 8., 0.) / 3.2) + .28 * exp(-.5 * pow((r - 4.1) / .95, 2.));
     profile = max(profile, front * .95);
+    // Equatorial Kerr–Newman helpers (M=1). Disk samples are near θ=π/2 so Σ≈r².
+    float a = uSpin;
+    float rr = max(r, .5);
+    float sqrtR = sqrt(rr);
+    float delta = max(rr * rr - 2. * rr + a * a + uCharge * uCharge, 1e-7);
+    float Sigma = rr * rr;
+    float Amet = pow(rr * rr + a * a, 2.) - a * a * delta;
+    // Prograde ZAMO Kepler speed (Bini et al. / Bardeen LNRF): ν₊ = (r² − 2a√r + a²) / (√Δ (r^{3/2}+a))
+    float keplerZamo = (rr * rr - 2. * a * sqrtR + a * a) / (sqrt(delta) * max(rr * sqrtR + a, 1e-5));
+    float kepler = clamp(keplerZamo, 0., .95);
     vec3 velocity = vec3(-pos[1] / r, pos[0] / r, 0.);
-    float kepler = clamp(r / max(pow(max(r, .5), 1.5) + uSpin, .5), 0., .7);
     float v = mix(min(.68, .52 * sqrt(5. / r)), kepler, clamp(uOrbit, 0., 1.));
     velocity *= v;
-    float doppler = sqrt(1. - dot(velocity, velocity)) / max(.25, 1. + dot(velocity, ray));
+    // Local SR Doppler in the ZAMO frame, then ZAMO lapse α=√(ΔΣ/A) for redshift to ∞.
+    float dopplerSR = sqrt(max(1. - dot(velocity, velocity), 0.)) / max(.25, 1. + dot(velocity, ray));
+    float alpha = sqrt(max(delta * Sigma / max(Amet, 1e-7), 0.));
+    float doppler = dopplerSR * alpha;
     float beam = uFrequencyShift == 0 ? 1. : doppler;
     float colorPow = uFrequencyShift == 0 ? 0. : clamp(uColorShift, 0., 2.);
     float brightPow = uFrequencyShift == 2 ? 2.4 : 0.;

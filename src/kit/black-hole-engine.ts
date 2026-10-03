@@ -200,7 +200,7 @@ export class BlackHoleEngine {
     tempFall: 0.72,
     tempPower: 0.0,
     saturation: 1.0,
-    orbit: 0.0,
+    orbit: 1.0,
     vignette: 0.0,
     chromatic: 0.0,
     steps: 18,
@@ -753,6 +753,7 @@ export class BlackHoleEngine {
     this.setFloat(pVolume, "uPhotonRingBoost", this.options.photonRingBoost ?? 2.2);
     this.setFloat(pVolume, "uHorizonGlow", this.options.horizonGlow ?? 0.35);
     this.setFloat(pVolume, "uSpin", this.options.spin);
+    this.setFloat(pVolume, "uCharge", this.options.charge);
     this.setFloat(pVolume, "uStarShift", this.options.starShift ?? 0);
     this.setFloat(pVolume, "uHeatHaze", this.options.heatHaze ?? 0);
     this.setFloat(pVolume, "uInnerFade", this.options.innerFade ?? 0.8);

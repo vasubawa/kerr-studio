@@ -36,16 +36,17 @@ struct Deriv {
     vec4 y;
     float phi;
 };
-Deriv flow(State s, float L, float Q, float a) {
+Deriv flow(State s, float L, float carterQ, float a) {
     float r = s.y.x, mu = s.y.y, pr = s.y.z, pu = s.y.w;
     float pk = r * r + a * a - a * L, d = max(r * r - 2. * r + a * a + uCharge * uCharge, 1e-7);
-    return Deriv(vec4(d * pr, pu, 2. * r * pk / d - (r - 1.) * (pk * pk / (d * d) + pr * pr), (a * a - Q - L * L) * mu - 2. * a * a * mu * mu * mu), a * pk / d - a + L * a * a * mu * mu / max(Q + a * a * mu * mu, 1e-10));
+    // carterQ = Carter constant Q_C (not EM charge; that is uCharge).
+    return Deriv(vec4(d * pr, pu, 2. * r * pk / d - (r - 1.) * (pk * pk / (d * d) + pr * pr), (a * a - carterQ - L * L) * mu - 2. * a * a * mu * mu * mu), a * pk / d - a + L * a * a * mu * mu / max(carterQ + a * a * mu * mu, 1e-10));
 }
 State addState(State s, Deriv k, float h) {
     return State(s.y + k.y * h, s.phi + k.phi * h);
 }
-State stepRay(State s, float L, float Q, float a, float h) {
-    Deriv k1 = flow(s, L, Q, a), k2 = flow(addState(s, k1, h * .5), L, Q, a), k3 = flow(addState(s, k2, h * .5), L, Q, a), k4 = flow(addState(s, k3, h), L, Q, a);
+State stepRay(State s, float L, float carterQ, float a, float h) {
+    Deriv k1 = flow(s, L, carterQ, a), k2 = flow(addState(s, k1, h * .5), L, carterQ, a), k3 = flow(addState(s, k2, h * .5), L, carterQ, a), k4 = flow(addState(s, k3, h), L, carterQ, a);
     return State(s.y + h / 6. * (k1.y + 2. * k2.y + 2. * k3.y + k4.y), s.phi + h / 6. * (k1.phi + 2. * k2.phi + 2. * k3.phi + k4.phi));
 }
 vec3 position(State s, float L, float pol, float az) {
@@ -53,9 +54,9 @@ vec3 position(State s, float L, float pol, float az) {
     float xy = r * sqrt(max(1. - mu * mu, 0.));
     return vec3(xy * cos(hp), xy * sin(hp), r * mu);
 }
-vec4 escapedSky(State s, float L, float Q, float a, float pol, float az, float wind) {
+vec4 escapedSky(State s, float L, float carterQ, float a, float pol, float az, float wind) {
     vec3 p = position(s, L, pol, az);
-    Deriv velocity = flow(s, L, Q, a);
+    Deriv velocity = flow(s, L, carterQ, a);
     float radial = length(p.xy), angular = -velocity.phi - L;
     vec3 ray = normalize(vec3(p.xy / max(radial, 1e-8) * velocity.y.x + vec2(-p.y, p.x) * angular, radial * s.y.w));
     if(any(isnan(ray)))
@@ -70,7 +71,9 @@ void traceRay(vec2 uv, out vec4 hit0, out vec4 hit1, out vec4 hit2, out vec4 sky
     float pp = -dot(dir, vec3(-sin(az), cos(az), 0.)), pt = dot(dir, vec3(mu * cos(az), mu * sin(az), -st));
     float sig = r * r + a * a * mu * mu, d = r * r - 2. * r + a * a + uCharge * uCharge, A = pow(r * r + a * a, 2.) - a * a * d * st * st;
     float en = sqrt(sig * d / A) + 2. * a * r / A * sqrt(A / sig) * st * pp;
-    float L = sqrt(A / sig) * st * pp / en, pth = sqrt(sig) * pt / en, Q = pth * pth + mu * mu * (L * L / (st * st) - a * a), K = Q + (L - a) * (L - a), pk = r * r + a * a - a * L;
+    float L = sqrt(A / sig) * st * pp / en, pth = sqrt(sig) * pt / en;
+    float carterQ = pth * pth + mu * mu * (L * L / (st * st) - a * a);
+    float K = carterQ + (L - a) * (L - a), pk = r * r + a * a - a * L;
     float pr = (dot(dir, normalize(uCamera)) < 0. ? -1. : 1.) * sqrt(max(pk * pk - d * K, 0.)) / d;
     if(pr > 0.) {
         sky = vec4(encodeRay(dir), 1., 0.);
@@ -87,20 +90,20 @@ void traceRay(vec2 uv, out vec4 hit0, out vec4 hit1, out vec4 hit2, out vec4 sky
         h = min(h, .15 * max(rr - hor, .001) / max(abs(dd * s.y.z), 1.));
         if(rr > 2.2 && rr < 6.5)
             wind += h * 6.;
-        State ns = stepRay(s, L, Q, a, h);
+        State ns = stepRay(s, L, carterQ, a, h);
         if(s.y.y * ns.y.y <= 0.) {
             float t = clamp(-s.y.y / (ns.y.y - s.y.y), 0., 1.);
-            State crossing = stepRay(s, L, Q, a, h * t);
+            State crossing = stepRay(s, L, carterQ, a, h * t);
             for(int refine = 0; refine < 3; refine++) {
                 float slope = h * crossing.y.w;
                 float nextT = abs(slope) > 1e-12 ? clamp(t - crossing.y.y / slope, 0., 1.) : t;
                 if(nextT == t)
                     break;
                 t = nextT;
-                crossing = stepRay(s, L, Q, a, h * t);
+                crossing = stepRay(s, L, carterQ, a, h * t);
             }
             vec3 p = position(crossing, L, pol, az);
-            Deriv velocity = flow(crossing, L, Q, a);
+            Deriv velocity = flow(crossing, L, carterQ, a);
             float radial = length(p.xy), angular = -velocity.phi - L;
             vec3 ray = normalize(vec3(p.xy / max(radial, 1e-8) * velocity.y.x + vec2(-p.y, p.x) * angular, radial * crossing.y.w));
             float rad = length(p.xy);
@@ -121,10 +124,10 @@ void traceRay(vec2 uv, out vec4 hit0, out vec4 hit1, out vec4 hit2, out vec4 sky
             break;
         }
         if(s.y.x > uOuterRadius && s.y.z > 0.) {
-            sky = escapedSky(s, L, Q, a, pol, az, wind);
+            sky = escapedSky(s, L, carterQ, a, pol, az, wind);
             break;
         }
     }
     if(!fell && sky.z < .5 && s.y.x > 8.)
-        sky = escapedSky(s, L, Q, a, pol, az, wind);
+        sky = escapedSky(s, L, carterQ, a, pol, az, wind);
 }

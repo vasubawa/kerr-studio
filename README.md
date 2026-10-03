@@ -60,7 +60,7 @@ Studio download JSON writes the same shape as `look.json`.
 
 ## Physics notes
 
-Kerr–Newman in Boyer–Lindquist coordinates with **M = 1** (charge **Q** optional; default look uses **Q = 0**, i.e. Kerr):
+Kerr–Newman in Boyer–Lindquist coordinates with **M = 1** (EM charge **Q** optional; default look uses **Q = 0**, i.e. Kerr):
 
 ```
 Σ = r² + a² cos²θ
@@ -68,14 +68,20 @@ Kerr–Newman in Boyer–Lindquist coordinates with **M = 1** (charge **Q** opti
 ```
 
 - Outer horizon: **r₊ = 1 + √(1 − a² − Q²)** (requires **a² + Q² ≤ 1**)
-- Conserved energy **E** and angular momentum **L_z** along each null geodesic; Carter constant **Q_C** appears in the θ-motion (named `Q` in the shader, not the charge)
-- Disk frequency factor (special-relativistic Doppler against the local emitter):
+- Null geodesics conserve energy **E**, angular momentum **L_z**, and Carter’s constant **Q_C** (local `carterQ` in `trace.glsl`; not the EM charge `uCharge`)
+- Camera rays are projected with a ZAMO-style local frame before integration
+- Disk **inner radius** defaults to **prograde photon orbit + 0.1M** (visual ring), not the ISCO
+- Disk frequency shift uses a **ZAMO-frame** treatment: prograde Kepler speed relative to ZAMO, SR Doppler in that frame, then gravitational redshift via the ZAMO lapse α = √(Δ Σ / A) (equatorial disk). This approximates `g = E / (−u·p)` for circular emitters; it is not a full null-geodesic invariance factor along each ray:
 
 ```
-D = √(1 − v²) / (1 + v · n)
+ν₊ = (r² − 2a√r + a²) / (√Δ (r^{3/2} + a))
+D_SR ≈ √(1 − v²) / (1 + v · n)
+g ≈ α D_SR ,   α = √(Δ Σ / A) ,   Σ = r² ,   A = (r²+a²)² − a² Δ   (θ = π/2)
 ```
 
-Spin **a**, charge **Q**, and disk radii are physical. Glow, haze, bloom, and “starfield warp” are presentation grades — they do not change the geodesic solve.
+Spin **a**, charge **Q**, geodesic integration, and the ZAMO frequency-shift model above are physical. Glow, haze, bloom, and starfield warp are presentation grades.
+
+Full audit with citations: [`docs/physics-accuracy.md`](./docs/physics-accuracy.md).
 
 ## License
 
