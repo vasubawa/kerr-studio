@@ -2,7 +2,7 @@
 
 My attempt at a spinning black hole you can orbit in the browser. Drag to look around, scroll to move closer. Light bends, the disk shifts as it turns, and the stars follow the warped sky. There are definitely still issues with it.
 
-It started as the backdrop for a portfolio site. I kept tuning it until it felt like its own place. The engine and shaders live in `src/kit/` if you want to take them with you.
+It started as the backdrop for a portfolio site. I kept tuning it until it felt like its own place. The engine and shaders live in `src/kit/` if you want to take them with you once you tweak setting to your liking and copying JSON settings.
 
 ![Default look — spin a = 0.6, frequency shift on, starfield warp 0.15](./public/og.png)
 
@@ -80,8 +80,6 @@ g ≈ α D_SR ,   α = √(Δ Σ / A) ,   Σ = r² ,   A = (r²+a²)² − a² �
 ```
 
 Spin **a**, charge **Q**, geodesic integration, and the ZAMO frequency-shift model above are physical. Glow, haze, bloom, and starfield warp are presentation grades.
-
-Full audit with citations: [`docs/physics-accuracy.md`](./docs/physics-accuracy.md).
 
 ## License
 
