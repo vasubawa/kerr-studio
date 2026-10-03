@@ -1,0 +1,32 @@
+{
+  "name": "kerr-blackhole-webgl",
+  "version": "1.0.0",
+  "description": "Kerr black hole geodesic raymarcher in WebGL2 with accretion disk frequency shift",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "black-hole",
+    "kerr-metric",
+    "general-relativity",
+    "webgl",
+    "webgl2",
+    "glsl",
+    "raymarching",
+    "gravitational-lensing"
+  ],
+  "author": "Dhruv Sharma <vasubawa>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vasubawa/kerr-blackhole.git"
+  },
+  "homepage": "https://github.com/vasubawa/kerr-blackhole",
+  "devDependencies": {
+    "typescript": "^5.6.2",
+    "vite": "^8.3.2"
+  }
+}

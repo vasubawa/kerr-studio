@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A spinning Kerr black hole in the browser. Drag to orbit. The stars show where the light bends."
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta property="og:title" content="Kerr black hole" />
+    <meta
+      property="og:description"
+      content="A spinning Kerr black hole in the browser. Drag to orbit. The stars show where the light bends."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Kerr black hole" />
+    <meta
+      name="twitter:description"
+      content="A spinning Kerr black hole in the browser. Drag to orbit. The stars show where the light bends."
+    />
+    <meta name="twitter:image" content="/og.png" />
+    <title>Kerr black hole</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/og.png" />
+    <link rel="stylesheet" href="./src/ui/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body>
+    <div id="app">
+      <canvas id="blackhole-canvas"></canvas>
+      <header class="hud-header">
+        <div class="hud-badge">Kerr metric</div>
+        <h1>Kerr black hole</h1>
+        <p class="subtitle">Drag to orbit. The stars follow the bent light.</p>
+      </header>
+      <div class="hud-stats">
+        <div class="stat-card">
+          <span class="stat-label">FPS</span>
+          <span id="fps-counter" class="stat-value">60</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">SOLVER</span>
+          <span class="stat-value">1,100 RK4</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">SPACETIME</span>
+          <span id="stat-spacetime" class="stat-value">Kerr (a = 0.60)</span>
+        </div>
+      </div>
+      <aside class="hud-panel" id="controls-panel">
+        <div class="panel-header">
+          <div class="header-title">
+            <span>Studio</span>
+          </div>
+          <div class="header-actions">
+            <button id="toggle-panel-btn" title="Minimize Panel">−</button>
+          </div>
+        </div>
+        <nav class="panel-tabs">
+          <button class="tab-btn active" data-tab="tab-camera">Camera</button>
+          <button class="tab-btn" data-tab="tab-disk">Disk</button>
+          <button class="tab-btn" data-tab="tab-physics">Physics</button>
+          <button class="tab-btn" data-tab="tab-optics">Optics</button>
+          <button class="tab-btn" data-tab="tab-presets">Presets</button>
+        </nav>
+
+        <div class="panel-body">
+          <section class="tab-content active" id="tab-camera">
+            <div class="control-group">
+              <label>Distance <span id="dist-val" class="param-badge">75.0 M</span></label>
+              <input type="range" id="param-distance" min="16" max="250" step="0.5" value="75" />
+              <div class="range-marks"><span>Close</span><span>Far</span></div>
+            </div>
+
+            <div class="control-group">
+              <label>Elevation (Pitch) <span id="elev-val" class="param-badge">6°</span></label>
+              <input
+                type="range"
+                id="param-elevation"
+                min="-0.78"
+                max="0.78"
+                step="0.01"
+                value="0.10"
+              />
+              <div class="range-marks">
+                <span>-45°</span><span>0° (Flat)</span><span>+45°</span>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label>Azimuth (Orbit) <span id="azim-val" class="param-badge">0°</span></label>
+              <input type="range" id="param-azimuth" min="-3.14" max="3.14" step="0.01" value="0" />
+            </div>
+
+            <div class="control-group">
+              <label>Roll <span id="roll-val" class="param-badge">16°</span></label>
+              <input type="range" id="param-roll" min="-0.78" max="0.78" step="0.01" value="0.28" />
+            </div>
+
+            <div class="control-group">
+              <label
+                >Field of View / Film <span id="film-val" class="param-badge">0.35</span></label
+              >
+              <input type="range" id="param-film" min="0.15" max="0.85" step="0.01" value="0.35" />
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label>Shift X <span id="shiftx-val" class="param-badge">-0.35</span></label>
+                <input
+                  type="range"
+                  id="param-shiftx"
+                  min="-0.50"
+                  max="0.50"
+                  step="0.01"
+                  value="-0.35"
+                />
+              </div>
+              <div class="control-group">
+                <label>Shift Y <span id="shifty-val" class="param-badge">-0.03</span></label>
+                <input
+                  type="range"
+                  id="param-shifty"
+                  min="-0.30"
+                  max="0.30"
+                  step="0.01"
+                  value="-0.03"
+                />
+              </div>
+            </div>
+          </section>
+          <section class="tab-content" id="tab-disk">
+            <div class="control-group">
+              <label
+                >Frequency shift
+                <span id="freqshift-val" class="param-badge">color+bright</span></label
+              >
+              <div class="mode-row" id="param-freqshift" role="group" aria-label="Frequency shift">
+                <button type="button" data-mode="off">Off</button>
+                <button type="button" data-mode="color">Color</button>
+                <button type="button" data-mode="color+bright" class="active">
+                  Color + bright
+                </button>
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label
+                  >Approaching color
+                  <span id="colorshift-val" class="param-badge">0.40</span></label
+                >
+                <input
+                  type="range"
+                  id="param-colorshift"
+                  min="0.0"
+                  max="2.0"
+                  step="0.05"
+                  value="0.40"
+                />
+              </div>
+              <div class="control-group">
+                <label>Approaching limb <span id="limb-val" class="param-badge">0.00</span></label>
+                <input type="range" id="param-limb" min="0.0" max="2.0" step="0.05" value="0.00" />
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label>Temperature <span id="temp-val" class="param-badge">7200K</span></label>
+              <input type="range" id="param-temp" min="3000" max="14000" step="200" value="7200" />
+              <div class="range-marks"><span>3000K</span><span>7200K</span><span>14000K</span></div>
+            </div>
+
+            <div class="control-group">
+              <label>Radiance <span id="radiance-val" class="param-badge">8.0</span></label>
+              <input type="range" id="param-radiance" min="1.0" max="35.0" step="0.5" value="8.0" />
+            </div>
+
+            <div class="control-group">
+              <label>Thickness <span id="thickness-val" class="param-badge">0.022</span></label>
+              <input
+                type="range"
+                id="param-thickness"
+                min="0.010"
+                max="0.080"
+                step="0.002"
+                value="0.022"
+              />
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label>Hopper <span id="hopper-val" class="param-badge">0.015</span></label>
+                <input
+                  type="range"
+                  id="param-hopper"
+                  min="0.000"
+                  max="0.060"
+                  step="0.005"
+                  value="0.015"
+                />
+              </div>
+              <div class="control-group">
+                <label>Reddening <span id="reddening-val" class="param-badge">0.00</span></label>
+                <input
+                  type="range"
+                  id="param-reddening"
+                  min="0.00"
+                  max="1.50"
+                  step="0.05"
+                  value="0.00"
+                />
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label>Inner radius <span id="inner-val" class="param-badge">2.29 M</span></label>
+                <input type="range" id="param-inner" min="1.0" max="4.5" step="0.05" value="2.29" />
+              </div>
+              <div class="control-group">
+                <label>Outer radius <span id="outer-val" class="param-badge">36.0 M</span></label>
+                <input
+                  type="range"
+                  id="param-outer"
+                  min="18.0"
+                  max="55.0"
+                  step="1.0"
+                  value="36.0"
+                />
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label>Density <span id="density-val" class="param-badge">1.00x</span></label>
+                <input
+                  type="range"
+                  id="param-density"
+                  min="0.2"
+                  max="3.0"
+                  step="0.05"
+                  value="1.0"
+                />
+              </div>
+              <div class="control-group">
+                <label>Swirl <span id="swirl-val" class="param-badge">0.40x</span></label>
+                <input
+                  type="range"
+                  id="param-swirl"
+                  min="0.05"
+                  max="1.50"
+                  step="0.05"
+                  value="0.40"
+                />
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label>Contrast <span id="contrast-val" class="param-badge">9.0</span></label>
+              <input type="range" id="param-contrast" min="1.0" max="25.0" step="0.5" value="9.0" />
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label>Heat shimmer <span id="hazeheat-val" class="param-badge">0.00</span></label>
+                <input
+                  type="range"
+                  id="param-heathaze"
+                  min="0.0"
+                  max="2.0"
+                  step="0.05"
+                  value="0.0"
+                />
+              </div>
+              <div class="control-group">
+                <label>Inner fade <span id="innerfade-val" class="param-badge">0.80</span></label>
+                <input
+                  type="range"
+                  id="param-innerfade"
+                  min="0.05"
+                  max="3.0"
+                  step="0.05"
+                  value="0.80"
+                />
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="control-group">
+                <label
+                  >Temperature fall <span id="tempfall-val" class="param-badge">0.72</span></label
+                >
+                <input
+                  type="range"
+                  id="param-tempfall"
+                  min="0.2"
+                  max="1.6"
+                  step="0.02"
+                  value="0.72"
+                />
+              </div>
+              <div class="control-group">
+                <label
+                  >Temperature strength
+                  <span id="temppower-val" class="param-badge">0.00</span></label
+                >
+                <input
+                  type="range"
+                  id="param-temppower"
+                  min="0.0"
+                  max="1.5"
+                  step="0.05"
+                  value="0.0"
+                />
+              </div>
+            </div>
+            <div class="two-col">
+              <div class="control-group">
+                <label>Saturation <span id="sat-val" class="param-badge">1.00</span></label>
+                <input
+                  type="range"
+                  id="param-saturation"
+                  min="0.0"
+                  max="2.0"
+                  step="0.05"
+                  value="1.0"
+                />
+              </div>
+              <div class="control-group">
+                <label>Orbit law <span id="orbit-val" class="param-badge">0.00</span></label>
+                <input type="range" id="param-orbit" min="0.0" max="1.0" step="0.05" value="0.0" />
+              </div>
+            </div>
+          </section>
+          <section class="tab-content" id="tab-physics">
+            <div class="control-group">
+              <label>Spin (a) <span id="spin-val" class="param-badge">0.60</span></label>
+              <input type="range" id="param-spin" min="0.0" max="0.98" step="0.01" value="0.60" />
+              <div class="range-marks">
+                <span>0.0 (Schwarzschild)</span><span>0.6 (Kerr)</span><span>0.98 (Extreme)</span>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label>Charge (Q) <span id="charge-val" class="param-badge">0.00</span></label>
+              <input type="range" id="param-charge" min="0.0" max="0.85" step="0.01" value="0.00" />
+              <div class="range-marks">
+                <span>0.0 (Neutral Kerr)</span><span>0.42 (Kerr-Newman)</span
+                ><span>0.85 (Near-Extremal)</span>
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label>Ring boost <span id="ringboost-val" class="param-badge">0.00x</span></label>
+                <input
+                  type="range"
+                  id="param-ringboost"
+                  min="0.0"
+                  max="8.0"
+                  step="0.1"
+                  value="0.0"
+                />
+              </div>
+              <div class="control-group">
+                <label
+                  >Horizon glow <span id="horizonglow-val" class="param-badge">0.00x</span></label
+                >
+                <input
+                  type="range"
+                  id="param-horizonglow"
+                  min="0.0"
+                  max="2.0"
+                  step="0.05"
+                  value="0.00"
+                />
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label>Speed <span id="speed-val" class="param-badge">0.65x</span></label>
+              <input type="range" id="param-speed" min="0.0" max="2.5" step="0.05" value="0.65" />
+              <div class="range-marks"><span>0</span><span>1</span><span>2.5</span></div>
+            </div>
+
+            <div class="control-group">
+              <label>Starfield warp <span id="lensing-val" class="param-badge">0.15x</span></label>
+              <input type="range" id="param-lensing" min="0.0" max="1.0" step="0.05" value="0.15" />
+              <div class="range-marks"><span>Straight</span><span>Bent light</span></div>
+            </div>
+
+            <div class="control-group">
+              <label>Star color <span id="starshift-val" class="param-badge">0.45</span></label>
+              <input
+                type="range"
+                id="param-starshift"
+                min="0.0"
+                max="2.0"
+                step="0.05"
+                value="0.45"
+              />
+            </div>
+
+            <div class="control-group">
+              <label>Steps <span id="steps-val" class="param-badge">28</span></label>
+              <input type="range" id="param-steps" min="12" max="36" step="4" value="28" />
+              <div class="range-marks"><span>12</span><span>24</span><span>36</span></div>
+            </div>
+          </section>
+          <section class="tab-content" id="tab-optics">
+            <div class="control-group">
+              <label>Exposure <span id="expo-val" class="param-badge">-0.50</span></label>
+              <input
+                type="range"
+                id="param-exposure"
+                min="-2.5"
+                max="0.5"
+                step="0.05"
+                value="-0.50"
+              />
+            </div>
+
+            <div class="control-group">
+              <label>Glow <span id="glow-val" class="param-badge">1.00</span></label>
+              <input type="range" id="param-glow" min="0.0" max="3.0" step="0.05" value="1.00" />
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label>Star count <span id="stars-val" class="param-badge">1.3</span></label>
+                <input type="range" id="param-stars" min="0.0" max="3.0" step="0.1" value="1.3" />
+              </div>
+              <div class="control-group">
+                <label>Haze <span id="haze-val" class="param-badge">0.4x</span></label>
+                <input type="range" id="param-haze" min="0.0" max="2.5" step="0.1" value="0.4" />
+              </div>
+            </div>
+
+            <div class="two-col">
+              <div class="control-group">
+                <label>Vignette <span id="vignette-val" class="param-badge">0.00</span></label>
+                <input
+                  type="range"
+                  id="param-vignette"
+                  min="0.00"
+                  max="1.00"
+                  step="0.05"
+                  value="0.00"
+                />
+              </div>
+              <div class="control-group">
+                <label>Chromatic <span id="chromatic-val" class="param-badge">0.0000</span></label>
+                <input
+                  type="range"
+                  id="param-chromatic"
+                  min="0.0000"
+                  max="0.0060"
+                  step="0.0005"
+                  value="0.0000"
+                />
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label>Quality</label>
+              <select id="param-quality" class="hud-select">
+                <option value="auto">Auto</option>
+                <option value="high" selected>High</option>
+                <option value="balanced">Balanced (960p Target)</option>
+                <option value="performance">Performance (640p Target)</option>
+              </select>
+            </div>
+          </section>
+          <section class="tab-content" id="tab-presets">
+            <div class="control-group">
+              <label>Save this look</label>
+              <div class="profile-save">
+                <input
+                  id="profile-name"
+                  type="text"
+                  maxlength="32"
+                  placeholder="Name"
+                  autocomplete="off"
+                />
+                <button id="profile-save-btn" type="button" class="export-btn primary">Save</button>
+              </div>
+              <p class="profile-note">
+                Built-in looks are below. A saved name stays in this browser.
+              </p>
+            </div>
+            <div class="control-group">
+              <label>Take this look with you</label>
+              <div class="look-file">
+                <button id="copy-config-btn" type="button" class="export-btn secondary">
+                  Copy JSON
+                </button>
+                <button id="download-json-btn" type="button" class="export-btn secondary">
+                  Download JSON
+                </button>
+                <button id="load-json-btn" type="button" class="export-btn secondary">
+                  Load JSON
+                </button>
+              </div>
+              <input id="load-json-input" type="file" accept="application/json,.json" hidden />
+            </div>
+            <div id="profile-list" class="profile-list"></div>
+          </section>
+          <div class="panel-export">
+            <button id="snapshot-btn" class="export-btn primary full-width">
+              <span>Save picture</span>
+            </button>
+            <button id="reset-defaults-btn" class="export-btn secondary full-width">
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+      <div id="hud-toast" class="hud-toast">Look copied.</div>
+      <footer class="hud-footer">
+        <span>Drag to orbit · scroll to zoom · H hides panels · S saves a picture</span>
+      </footer>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

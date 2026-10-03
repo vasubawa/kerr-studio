@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "*.frag": "glsl",
+    "*.vert": "glsl",
+    "*.glsl": "glsl"
+  },
+  "glsllint.useIncludeDirOfFile": true,
+  "glsllint.linkShader": false,
+  "glsllint.glslangValidatorArgs": ["--P", "#extension GL_GOOGLE_include_directive: enable"]
+}
